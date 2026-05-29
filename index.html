@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>JUSTUS • Private Chat</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  --bg-primary: #ffffff; --bg-secondary: #f5f5f5; --bg-tertiary: #e8e8e8;
+  --text-primary: #111111; --text-secondary: #666666; --text-muted: #999999;
+  --border: #e0e0e0; --accent: #075E54; --sent-msg: #DCF8C6;
+  --received-msg: #ffffff; --header-bg: #075E54; --header-text: white;
+  --chat-wallpaper: #f5f5f5; --msg-font-size: 14px;
+}
+body.dark {
+  --bg-primary: #1a1a1a; --bg-secondary: #2a2a2a; --bg-tertiary: #333333;
+  --text-primary: #ffffff; --text-secondary: #bbbbbb; --text-muted: #888888;
+  --border: #444444; --accent: #25D366; --sent-msg: #075E54;
+  --received-msg: #2a2a2a; --header-bg: #111111; --chat-wallpaper: #2a2a2a;
+}
+body.oled {
+  --bg-primary: #000000; --bg-secondary: #0a0a0a; --bg-tertiary: #111111;
+  --text-primary: #ffffff; --text-secondary: #aaaaaa; --text-muted: #666666;
+  --border: #222222; --accent: #25D366; --sent-msg: #075E54;
+  --received-msg: #111111; --header-bg: #000000; --chat-wallpaper: #0a0a0a;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg-primary); color: var(--text-primary);
+  height: 100vh; width: 100vw; overflow: hidden; position: fixed; top: 0; left: 0;
+}
+
+.app-container { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+.main-content { flex: 1; overflow-y: auto; }
+
+.screen-chats, .screen-chat, .screen-updates, .screen-calls,
+.screen-settings, .screen-profile, .screen-help,
+.screen-account, .screen-privacy, .screen-chats-settings,
+.screen-notifications, .screen-storage {
+  display: none; flex-direction: column; height: 100%;
+}
+.screen-chats.show, .screen-chat.show, .screen-updates.show, .screen-calls.show,
+.screen-settings.show, .screen-profile.show, .screen-help.show,
+.screen-account.show, .screen-privacy.show, .screen-chats-settings.show,
+.screen-notifications.show, .screen-storage.show { display: flex; }
+
+/* Header */
+.header {
+  padding: 16px; background: var(--header-bg);
+  display: flex; justify-content: center; align-items: center;
+  position: relative; flex-shrink: 0;
+}
+.logo { text-align: center; }
+.logo h1 { font-size: 28px; font-weight: 900; color: var(--header-text); letter-spacing: -0.5px; text-transform: uppercase; }
+.logo span { font-size: 8px; color: rgba(255,255,255,0.7); display: block; }
+.menu-btn {
+  position: absolute; right: 16px; background: none; border: none;
+  color: var(--header-text); font-size: 24px; cursor: pointer;
+  width: 44px; height: 44px; border-radius: 50%;
+}
+.chat-header, .profile-header, .sub-header {
+  padding: 12px 16px; background: var(--header-bg);
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.back-btn {
+  background: none; border: none; color: var(--header-text);
+  font-size: 28px; cursor: pointer; width: 36px; height: 36px; border-radius: 50%;
+}
+.sub-header-title { font-size: 17px; font-weight: 700; color: var(--header-text); flex: 1; }
+
+/* Avatars — faded glass green */
+.chat-header-avatar, .chat-avatar-img, .profile-avatar-large,
+.status-avatar-small, .call-avatar {
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d4ede0, #aed5be);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; color: #3d7a55; flex-shrink: 0;
+}
+.chat-header-avatar { width: 42px; height: 42px; font-size: 18px; }
+.chat-avatar-img { width: 50px; height: 50px; font-size: 20px; }
+.profile-avatar-large { width: 90px; height: 90px; font-size: 40px; margin: 24px auto 14px; cursor: pointer; }
+.profile-avatar-large:active { opacity: 0.8; }
+.status-avatar-small, .call-avatar { width: 50px; height: 50px; font-size: 20px; }
+
+.chat-header-info { flex: 1; }
+.chat-header-name { font-weight: 600; font-size: 16px; color: var(--header-text); }
+.chat-header-status { font-size: 11px; color: rgba(255,255,255,0.7); }
+
+/* Chat list */
+.chat-list { flex: 1; }
+.chat-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 1px solid var(--border); background: var(--bg-primary);
+}
+.chat-item:active { background: var(--bg-secondary); }
+.chat-info { flex: 1; min-width: 0; }
+.chat-name { font-weight: 600; font-size: 16px; }
+.chat-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-meta { text-align: right; }
+.chat-time { font-size: 10px; color: var(--text-muted); }
+.unread-badge {
+  background: var(--accent); color: white; font-size: 10px; font-weight: bold;
+  min-width: 18px; height: 18px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 5px; margin-top: 4px;
+}
+
+/* Messages */
+.messages-area {
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--chat-wallpaper);
+}
+.message { display: flex; max-width: 80%; }
+.message.sent { align-self: flex-end; }
+.message.received { align-self: flex-start; }
+.message-bubble {
+  padding: 10px 14px; border-radius: 18px;
+  font-size: var(--msg-font-size);
+}
+.message.sent .message-bubble {
+  background: var(--sent-msg); border-bottom-right-radius: 4px;
+}
+.message.received .message-bubble {
+  background: var(--received-msg); border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.message-meta {
+  display: flex; justify-content: flex-end;
+  margin-top: 4px; font-size: 9px; opacity: 0.7; gap: 4px;
+}
+.date-divider { text-align: center; margin: 16px 0; }
+.date-divider span {
+  background: var(--bg-tertiary); padding: 4px 12px;
+  font-size: 11px; border-radius: 20px;
+}
+
+/* Input */
+.input-area {
+  padding: 10px 16px; background: var(--bg-primary);
+  border-top: 1px solid var(--border); display: flex; gap: 10px; flex-shrink: 0;
+}
+.message-input {
+  flex: 1; background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 24px; padding: 10px 16px; outline: none;
+  font-size: 14px; color: var(--text-primary);
+}
+.send-btn {
+  background: var(--accent); border: none; color: white;
+  width: 44px; height: 44px; border-radius: 50%; cursor: pointer; font-size: 18px;
+}
+
+/* Profile screen */
+.profile-name { text-align: center; font-size: 22px; font-weight: 700; }
+.profile-status-text { text-align: center; font-size: 13px; color: var(--text-secondary); margin-bottom: 24px; }
+.profile-section { padding: 0 16px 8px; border-top: 1px solid var(--border); }
+.profile-section-title {
+  font-weight: 600; font-size: 11px; color: var(--text-muted);
+  margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.profile-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0; cursor: pointer; border-bottom: 1px solid var(--border);
+}
+.profile-item-left { display: flex; align-items: center; gap: 12px; }
+.profile-item-icon { font-size: 20px; width: 32px; }
+.profile-item-label { font-size: 15px; font-weight: 500; }
+.danger-text { color: #EF4444; }
+
+/* Toggle switch */
+.toggle-switch {
+  width: 44px; height: 24px; background: var(--border);
+  border-radius: 24px; position: relative; cursor: pointer; flex-shrink: 0;
+}
+.toggle-switch.on { background: var(--accent); }
+.toggle-switch::after {
+  content: ''; position: absolute; width: 20px; height: 20px;
+  background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 0.2s;
+}
+.toggle-switch.on::after { left: 22px; }
+
+/* Status & Calls */
+.status-list, .call-list { padding: 16px; overflow-y: auto; flex: 1; }
+.status-card, .call-item {
+  background: var(--bg-secondary); border-radius: 16px; padding: 16px;
+  margin-bottom: 12px; display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--border);
+}
+.status-info, .call-info { flex: 1; }
+.status-name, .call-name { font-weight: 600; font-size: 15px; }
+.status-text { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+.status-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.call-type { font-size: 12px; color: var(--text-secondary); }
+.add-status-btn {
+  background: var(--accent); color: white; border: none;
+  padding: 12px 20px; border-radius: 30px; font-size: 14px;
+  font-weight: 600; margin: 16px; cursor: pointer; flex-shrink: 0;
+}
+.call-btn {
+  background: var(--accent); color: white; border: none;
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 16px;
+}
+
+/* ── Settings ── */
+.settings-body { flex: 1; overflow-y: auto; padding-bottom: 30px; }
+.settings-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-muted); padding: 18px 16px 6px;
+}
+.settings-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-primary); cursor: pointer;
+}
+.settings-row:active { background: var(--bg-secondary); }
+.settings-row-label { font-size: 15px; font-weight: 500; }
+.settings-chevron { font-size: 20px; color: var(--text-muted); }
+.settings-row-control { display: flex; align-items: center; gap: 10px; }
+.settings-row-value { font-size: 13px; color: var(--text-muted); }
+.settings-save-btn {
+  display: block; width: calc(100% - 32px); margin: 24px 16px 0;
+  background: #075E54; color: white; border: none;
+  padding: 14px; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.settings-danger-btn {
+  display: block; width: calc(100% - 32px); margin: 12px 16px 0;
+  background: #EF4444; color: white; border: none;
+  padding: 14px; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+
+/* Sub-screen shared */
+.sub-body { flex: 1; overflow-y: auto; padding-bottom: 30px; }
+.sub-section-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; color: var(--text-muted); padding: 18px 16px 6px;
+}
+.sub-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+.sub-row-label { font-size: 15px; font-weight: 500; }
+.sub-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Account screen */
+.account-avatar-wrap { display: flex; justify-content: center; padding: 24px 0 8px; position: relative; }
+.avatar-edit-hint { text-align: center; font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+.emoji-picker {
+  display: none; flex-wrap: wrap; gap: 8px;
+  padding: 16px; background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border); justify-content: center;
+}
+.emoji-picker.show { display: flex; }
+.emoji-opt {
+  font-size: 28px; width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; cursor: pointer; background: var(--bg-primary);
+}
+.emoji-opt:active { background: var(--bg-tertiary); }
+.account-field { padding: 0 16px; border-bottom: 1px solid var(--border); }
+.account-field label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; padding-top: 14px; }
+.account-field input, .account-field textarea {
+  width: 100%; background: transparent; border: none; outline: none;
+  font-size: 15px; color: var(--text-primary); padding: 8px 0 14px;
+  font-family: inherit; resize: none;
+}
+.account-phone { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.account-phone-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.account-phone-value { font-size: 15px; color: var(--text-secondary); margin-top: 4px; }
+
+/* Radio options */
+.radio-group { padding: 0; }
+.radio-opt {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-primary); cursor: pointer;
+}
+.radio-opt:active { background: var(--bg-secondary); }
+.radio-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border); background: var(--bg-primary);
+  transition: all 0.15s;
+}
+.radio-dot.selected { background: var(--accent); border-color: var(--accent); }
+
+/* Color swatches */
+.swatch-row { display: flex; gap: 14px; flex-wrap: wrap; padding: 16px; }
+.swatch {
+  width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: border-color 0.15s;
+}
+.swatch.active { border-color: var(--accent); }
+
+/* Font size buttons */
+.font-size-row { display: flex; gap: 10px; padding: 16px; }
+.font-size-btn {
+  flex: 1; padding: 10px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg-primary); color: var(--text-primary); cursor: pointer;
+  font-family: inherit; font-weight: 600;
+}
+.font-size-btn.active { border-color: var(--accent); color: var(--accent); background: var(--bg-secondary); }
+
+/* Storage bar */
+.storage-info { padding: 20px 16px 12px; }
+.storage-bar-bg {
+  height: 8px; background: var(--bg-tertiary); border-radius: 8px; overflow: hidden; margin: 10px 0 6px;
+}
+.storage-bar-fill { height: 100%; background: var(--accent); border-radius: 8px; transition: width 0.4s; }
+.storage-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+.storage-stat { padding: 6px 16px; font-size: 13px; color: var(--text-secondary); }
+
+/* Help */
+.help-body { flex: 1; overflow-y: auto; padding: 20px 16px; }
+.help-intro { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.5; }
+.help-table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.help-table thead tr { background: var(--header-bg); }
+.help-table thead th { color: white; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px; text-align: left; }
+.help-table tbody tr { border-bottom: 1px solid var(--border); }
+.help-table tbody tr:last-child { border-bottom: none; }
+.help-table tbody tr:nth-child(even) { background: var(--bg-secondary); }
+.help-table tbody tr:nth-child(odd) { background: var(--bg-primary); }
+.help-table td { padding: 13px 14px; font-size: 13px; vertical-align: top; line-height: 1.45; }
+.help-table td:first-child { font-weight: 700; width: 38%; white-space: nowrap; }
+.help-table td:last-child { color: var(--text-secondary); }
+.help-tip {
+  margin-top: 20px; background: var(--bg-secondary);
+  border: 1px solid var(--border); border-left: 3px solid #075E54;
+  border-radius: 8px; padding: 12px 14px;
+  font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+}
+.help-tip strong { color: var(--text-primary); display: block; margin-bottom: 4px; font-size: 12px; }
+
+/* Bottom nav */
+.bottom-nav {
+  background: var(--bg-primary); border-top: 1px solid var(--border);
+  display: flex; padding: 8px 12px; flex-shrink: 0;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; padding: 6px 0; cursor: pointer;
+}
+.nav-icon { font-size: 22px; color: #999; }
+.nav-label { font-size: 10px; color: #999; }
+.nav-item.active .nav-icon, .nav-item.active .nav-label { color: var(--accent); }
+
+/* Dropdown */
+.dropdown-menu {
+  position: fixed; top: 60px; right: 16px;
+  background: var(--bg-primary); border: 1px solid var(--border);
+  border-radius: 16px; width: 200px; z-index: 200;
+  display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.dropdown-menu.show { display: block; }
+.dropdown-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 14px; }
+.dropdown-item:last-child { border-bottom: none; }
+
+/* Modal */
+.status-modal {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-primary); border-top-left-radius: 20px;
+  border-top-right-radius: 20px; padding: 20px; z-index: 200;
+  transform: translateY(100%); transition: transform 0.3s;
+}
+.status-modal.open { transform: translateY(0); }
+.status-modal textarea {
+  width: 100%; padding: 12px; border: 1px solid var(--border);
+  border-radius: 12px; margin: 12px 0;
+  background: var(--bg-secondary); color: var(--text-primary); font-family: inherit;
+}
+.modal-buttons { display: flex; gap: 12px; }
+.modal-buttons button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.modal-save { background: var(--accent); color: white; }
+.modal-cancel { background: var(--bg-secondary); color: var(--text-primary); }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; display: none; }
+.overlay.show { display: block; }
+
+/* ── FAB ── */
+.fab-overlay {
+  position: fixed; inset: 0; z-index: 149;
+  background: rgba(0,0,0,0.45);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.fab-overlay.open { opacity: 1; pointer-events: all; }
+
+.fab-container {
+  position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 14px; z-index: 150;
+}
+
+.fab-main {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #075E54; border: none; color: white;
+  font-size: 28px; font-weight: 300; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), background 0.2s;
+  flex-shrink: 0;
+}
+.fab-main.open { transform: rotate(45deg); background: #c0392b; }
+
+.fab-item {
+  display: flex; align-items: center; gap: 10px;
+  opacity: 0; pointer-events: none;
+  transform: translateY(12px) scale(0.85);
+  transition: opacity 0.22s, transform 0.22s cubic-bezier(.34,1.56,.64,1);
+  transition-delay: 0s;
+}
+.fab-item.open {
+  opacity: 1; pointer-events: all;
+  transform: translateY(0) scale(1);
+  transition-delay: calc((var(--i) - 1) * 0.05s);
+}
+
+.fab-mini {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--bg-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; cursor: pointer; flex-shrink: 0;
+}
+.fab-mini:active { transform: scale(0.92); }
+
+.fab-label {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px; font-weight: 600;
+  padding: 5px 12px; border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
+
+/* ── LOGIN SCREEN ── */
+.screen-login {
+  position: fixed; inset: 0; z-index: 999;
+  background: #075E54;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+}
+.screen-login.hide { display: none; }
+
+.login-logo { text-align: center; margin-bottom: 40px; }
+.login-logo h1 { font-size: 42px; font-weight: 900; color: white; letter-spacing: -1px; }
+.login-logo p { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+.login-card {
+  background: white; border-radius: 24px;
+  padding: 28px 24px; width: 100%; max-width: 360px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.login-tabs {
+  display: flex; background: #f5f5f5; border-radius: 12px;
+  padding: 4px; margin-bottom: 24px; gap: 4px;
+}
+.login-tab {
+  flex: 1; padding: 9px; border-radius: 9px; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  background: transparent; color: #666; transition: all 0.2s;
+  font-family: inherit;
+}
+.login-tab.active { background: white; color: #075E54; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+
+.login-field { margin-bottom: 14px; }
+.login-field label { font-size: 11px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+.login-field input {
+  width: 100%; padding: 13px 14px; border-radius: 12px;
+  border: 1.5px solid #e0e0e0; font-size: 15px;
+  outline: none; font-family: inherit; color: #111;
+  transition: border-color 0.2s;
+}
+.login-field input:focus { border-color: #075E54; }
+
+.login-btn {
+  width: 100%; padding: 14px; border-radius: 14px;
+  background: #075E54; color: white; border: none;
+  font-size: 16px; font-weight: 700; cursor: pointer;
+  margin-top: 6px; font-family: inherit;
+  transition: background 0.2s;
+}
+.login-btn:active { background: #064a44; }
+
+.login-error {
+  color: #e74c3c; font-size: 13px; text-align: center;
+  margin-top: 10px; min-height: 18px;
+}
+
+.login-footer { text-align: center; margin-top: 20px; font-size: 12px; color: rgba(255,255,255,0.6); }
+</style>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div class="screen-login" id="screenLogin">
+  <div class="login-logo">
+    <h1>JUSTUS</h1>
+    <p>🔒 Private & Secure Messaging</p>
+  </div>
+  <div class="login-card">
+    <div class="login-tabs">
+      <button class="login-tab active" id="tabLogin">Log In</button>
+      <button class="login-tab" id="tabSignup">Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm">
+      <div class="login-field">
+        <label>Username</label>
+        <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      <button class="login-btn" id="loginBtn">Log In</button>
+      <div class="login-error" id="loginError"></div>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" style="display:none">
+      <div class="login-field">
+        <label>Full Name</label>
+        <input type="text" id="signupName" placeholder="Your display name">
+      </div>
+      <div class="login-field">
+        <label>Username</label>
+        <input type="text" id="signupUsername" placeholder="Choose a username">
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="signupPassword" placeholder="Create a password" autocomplete="new-password">
+      </div>
+      <button class="login-btn" id="signupBtn">Create Account</button>
+      <div class="login-error" id="signupError"></div>
+    </div>
+  </div>
+  <div class="login-footer">Your data is stored only on this device for now.</div>
+</div>
+
+<div class="app-container">
+<div class="overlay" id="overlay"></div>
+
+<div class="status-modal" id="statusModal">
+  <h3>Update Status</h3>
+  <textarea id="statusInput" rows="3" placeholder="What's on your mind?"></textarea>
+  <div class="modal-buttons">
+    <button class="modal-cancel" id="cancelStatusBtn">Cancel</button>
+    <button class="modal-save" id="postStatusBtn">Post</button>
+  </div>
+</div>
+
+<div class="main-content">
+
+  <!-- ── CHATS ── -->
+  <div class="screen-chats show" id="screenChats">
+    <div class="header">
+      <div class="logo"><h1>JUSTUS</h1><span id="headerSubtitle">🔒 PRIVATE & SECURE</span></div>
+      <button class="menu-btn" id="menuBtn">⋮</button>
+    </div>
+    <div class="dropdown-menu" id="dropdownMenu">
+      <div class="dropdown-item" id="menuSettings">Settings</div>
+      <div class="dropdown-item" id="menuHelp">Help</div>
+      <div class="dropdown-item" id="menuInvite">Invite Friend</div>
+    </div>
+    <div class="chat-list" id="chatList"></div>
+  </div>
+
+  <!-- ── CHAT DETAIL ── -->
+  <div class="screen-chat" id="screenChat">
+    <div class="chat-header">
+      <button class="back-btn" id="chatBackBtn">←</button>
+      <div class="chat-header-avatar" id="chatAvatar">C</div>
+      <div class="chat-header-info">
+        <div class="chat-header-name" id="chatName">Chiselda</div>
+        <div class="chat-header-status" id="chatStatus">Online</div>
+      </div>
+    </div>
+    <div class="messages-area" id="messagesArea">
+      <div class="date-divider"><span>Today</span></div>
+    </div>
+    <div class="input-area">
+      <textarea class="message-input" id="messageInput" rows="1" placeholder="Type a message..."></textarea>
+      <button class="send-btn" id="sendBtn">➤</button>
+    </div>
+  </div>
+
+  <!-- ── PROFILE ── -->
+  <div class="screen-profile" id="screenProfile">
+    <div class="sub-header">
+      <button class="back-btn" id="profileBackBtn">←</button>
+      <span class="sub-header-title"></span>
+    </div>
+    <div style="overflow-y:auto;flex:1">
+      <div class="profile-avatar-large" id="profileAvatar">C</div>
+      <div class="profile-name" id="profileName">Chiselda</div>
+      <div class="profile-status-text" id="profileStatusText">Online</div>
+      <div class="profile-section">
+        <div class="profile-section-title">Privacy</div>
+        <div class="profile-item" id="muteItem">
+          <div class="profile-item-left"><span class="profile-item-label">Mute Notifications</span></div>
+          <div class="toggle-switch" id="muteToggle"></div>
+        </div>
+      </div>
+      <div class="profile-section">
+        <div class="profile-section-title">Chat</div>
+        <div class="profile-item" id="clearChatItem">
+          <div class="profile-item-left"><span class="profile-item-label">Clear Chat</span></div>
+          <span class="danger-text">Clear →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UPDATES ── -->
+  <div class="screen-updates" id="screenUpdates">
+    <div class="header">
+      <div class="logo"><h1 id="updatesTitle">UPDATES</h1><span>STATUS</span></div>
+      <div style="width:44px"></div>
+    </div>
+    <button class="add-status-btn" id="openStatusBtn" style="flex-shrink:0">➕ Add Status Update</button>
+    <div class="status-list" id="statusList"></div>
+  </div>
+
+  <!-- ── CALLS ── -->
+  <div class="screen-calls" id="screenCalls">
+    <div class="header">
+      <div class="logo"><h1 id="callsTitle">CALLS</h1><span>HISTORY</span></div>
+      <div style="width:44px"></div>
+    </div>
+    <div class="call-list" id="callList"></div>
+  </div>
+
+  <!-- ── SETTINGS (main) ── -->
+  <div class="screen-settings" id="screenSettings">
+    <div class="sub-header">
+      <button class="back-btn" id="settingsBackBtn">←</button>
+      <span class="sub-header-title" id="settingsTitle">Settings</span>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section-label">Account</div>
+      <div class="settings-row" id="goAccount">
+        <span class="settings-row-label">Account</span>
+        <span class="settings-chevron">›</span>
+      </div>
+      <div class="settings-row" id="goPrivacy">
+        <span class="settings-row-label">Privacy</span>
+        <span class="settings-chevron">›</span>
+      </div>
+
+      <div class="settings-section-label">Preferences</div>
+      <div class="settings-row" id="goChatsSettings">
+        <span class="settings-row-label">Chats</span>
+        <span class="settings-chevron">›</span>
+      </div>
+      <div class="settings-row" id="goNotifications">
+        <span class="settings-row-label">Notifications</span>
+        <span class="settings-chevron">›</span>
+      </div>
+      <div class="settings-row" id="goStorage">
+        <span class="settings-row-label">Storage and Data</span>
+        <span class="settings-chevron">›</span>
+      </div>
+
+      <div class="settings-section-label">Appearance</div>
+      <div class="settings-row" style="cursor:default">
+        <span class="settings-row-label">Theme</span>
+        <div class="settings-row-control">
+          <select id="themeSelect" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="oled">OLED Black</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-row" id="goLanguage" style="cursor:default">
+        <span class="settings-row-label">App Language</span>
+        <div class="settings-row-control">
+          <select id="langSelect" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:13px;">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="pt">Português</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section-label">More</div>
+      <div class="settings-row" id="goInvite">
+        <span class="settings-row-label">Invite a Friend</span>
+        <span class="settings-chevron">›</span>
+      </div>
+      <div class="settings-row" id="goHelpFromSettings">
+        <span class="settings-row-label">Help</span>
+        <span class="settings-chevron">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ACCOUNT ── -->
+  <div class="screen-account" id="screenAccount">
+    <div class="sub-header">
+      <button class="back-btn" id="accountBackBtn">←</button>
+      <span class="sub-header-title">Account</span>
+      <button id="accountSaveBtn" style="background:none;border:none;color:var(--header-text);font-size:14px;font-weight:700;cursor:pointer;padding:4px 8px;">Save</button>
+    </div>
+    <div class="sub-body">
+      <div class="account-avatar-wrap">
+        <div class="profile-avatar-large" id="accountAvatar" style="cursor:pointer">A</div>
+      </div>
+      <div class="avatar-edit-hint">Tap avatar to change</div>
+      <div class="emoji-picker" id="emojiPicker">
+        <div class="emoji-opt">😀</div><div class="emoji-opt">😎</div><div class="emoji-opt">🤩</div>
+        <div class="emoji-opt">😊</div><div class="emoji-opt">🥳</div><div class="emoji-opt">😍</div>
+        <div class="emoji-opt">🤔</div><div class="emoji-opt">😴</div><div class="emoji-opt">🙂</div>
+        <div class="emoji-opt">😇</div><div class="emoji-opt">🤗</div><div class="emoji-opt">✌️</div>
+      </div>
+      <div class="account-field">
+        <label>Your Name</label>
+        <input type="text" id="accountNameInput" placeholder="Enter your name">
+      </div>
+      <div class="account-field">
+        <label>About</label>
+        <textarea id="accountAboutInput" rows="2" placeholder="Hey there! I am using JUSTUS."></textarea>
+      </div>
+      <div class="account-phone">
+        <div class="account-phone-label">Phone</div>
+        <div class="account-phone-value">+1 234 567 8900</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PRIVACY ── -->
+  <div class="screen-privacy" id="screenPrivacy">
+    <div class="sub-header">
+      <button class="back-btn" id="privacyBackBtn">←</button>
+      <span class="sub-header-title">Privacy</span>
+    </div>
+    <div class="sub-body">
+      <div class="sub-section-label">Messaging</div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Read Receipts</div><div class="sub-row-sub">Show when messages are read</div></div>
+        <div class="toggle-switch" id="readReceiptsToggle"></div>
+      </div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Online Status</div><div class="sub-row-sub">Let others see when you're online</div></div>
+        <div class="toggle-switch" id="onlineStatusToggle"></div>
+      </div>
+
+      <div class="sub-section-label">Last Seen</div>
+      <div class="radio-group" id="lastSeenGroup">
+        <div class="radio-opt" data-group="lastSeen" data-val="everyone"><span>Everyone</span><div class="radio-dot"></div></div>
+        <div class="radio-opt" data-group="lastSeen" data-val="contacts"><span>My Contacts</span><div class="radio-dot"></div></div>
+        <div class="radio-opt" data-group="lastSeen" data-val="nobody"><span>Nobody</span><div class="radio-dot"></div></div>
+      </div>
+
+      <div class="sub-section-label">Profile Photo</div>
+      <div class="radio-group" id="profilePhotoGroup">
+        <div class="radio-opt" data-group="profilePhoto" data-val="everyone"><span>Everyone</span><div class="radio-dot"></div></div>
+        <div class="radio-opt" data-group="profilePhoto" data-val="contacts"><span>My Contacts</span><div class="radio-dot"></div></div>
+        <div class="radio-opt" data-group="profilePhoto" data-val="nobody"><span>Nobody</span><div class="radio-dot"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHATS SETTINGS ── -->
+  <div class="screen-chats-settings" id="screenChatsSettings">
+    <div class="sub-header">
+      <button class="back-btn" id="chatsSettingsBackBtn">←</button>
+      <span class="sub-header-title">Chats</span>
+    </div>
+    <div class="sub-body">
+      <div class="sub-section-label">Chat Wallpaper</div>
+      <div class="swatch-row" id="wallpaperSwatches">
+        <div class="swatch active" data-val="#f5f5f5" style="background:#f5f5f5;border:1px solid #ddd"></div>
+        <div class="swatch" data-val="#d4ede0" style="background:#d4ede0"></div>
+        <div class="swatch" data-val="#dce8f5" style="background:#dce8f5"></div>
+        <div class="swatch" data-val="#f5dce8" style="background:#f5dce8"></div>
+        <div class="swatch" data-val="#f5f0dc" style="background:#f5f0dc"></div>
+        <div class="swatch" data-val="#ecdcf5" style="background:#ecdcf5"></div>
+        <div class="swatch" data-val="#1a1a1a" style="background:#1a1a1a"></div>
+      </div>
+
+      <div class="sub-section-label">Sent Bubble Color</div>
+      <div class="swatch-row" id="bubbleSwatches">
+        <div class="swatch active" data-val="#DCF8C6" style="background:#DCF8C6"></div>
+        <div class="swatch" data-val="#bbdefb" style="background:#bbdefb"></div>
+        <div class="swatch" data-val="#e1bee7" style="background:#e1bee7"></div>
+        <div class="swatch" data-val="#ffccbc" style="background:#ffccbc"></div>
+        <div class="swatch" data-val="#f0f4c3" style="background:#f0f4c3"></div>
+        <div class="swatch" data-val="#075E54" style="background:#075E54"></div>
+      </div>
+
+      <div class="sub-section-label">Font Size</div>
+      <div class="font-size-row">
+        <button class="font-size-btn" data-size="12px" style="font-size:12px">Small</button>
+        <button class="font-size-btn active" data-size="14px" style="font-size:14px">Medium</button>
+        <button class="font-size-btn" data-size="17px" style="font-size:17px">Large</button>
+      </div>
+
+      <div class="sub-section-label">Input</div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Enter to Send</div><div class="sub-row-sub">Press Enter key to send message</div></div>
+        <div class="toggle-switch" id="enterToSendToggle"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NOTIFICATIONS ── -->
+  <div class="screen-notifications" id="screenNotifications">
+    <div class="sub-header">
+      <button class="back-btn" id="notificationsBackBtn">←</button>
+      <span class="sub-header-title">Notifications</span>
+    </div>
+    <div class="sub-body">
+      <div class="sub-section-label">Messages</div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Notifications</div><div class="sub-row-sub">Show message notifications</div></div>
+        <div class="toggle-switch" id="notifToggle"></div>
+      </div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Sound</div><div class="sub-row-sub">Play sound for new messages</div></div>
+        <div class="toggle-switch" id="soundToggle"></div>
+      </div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Vibrate</div><div class="sub-row-sub">Vibrate on new messages</div></div>
+        <div class="toggle-switch" id="vibrateToggle"></div>
+      </div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Message Preview</div><div class="sub-row-sub">Show message content in notifications</div></div>
+        <div class="toggle-switch" id="previewToggle"></div>
+      </div>
+      <div class="sub-section-label">Test</div>
+      <div class="settings-row" id="testNotifBtn" style="color:var(--accent)">
+        <span class="settings-row-label" style="color:var(--accent)">Send Test Notification</span>
+        <span class="settings-chevron">›</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STORAGE ── -->
+  <div class="screen-storage" id="screenStorage">
+    <div class="sub-header">
+      <button class="back-btn" id="storageBackBtn">←</button>
+      <span class="sub-header-title">Storage and Data</span>
+    </div>
+    <div class="sub-body">
+      <div class="sub-section-label">Storage Used</div>
+      <div class="storage-info">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)">
+          <span id="storageUsedLabel">Calculating...</span>
+          <span id="storageTotalLabel">5 MB available</span>
+        </div>
+        <div class="storage-bar-bg"><div class="storage-bar-fill" id="storageBarFill" style="width:0%"></div></div>
+        <div class="storage-labels"><span>0</span><span>5 MB</span></div>
+      </div>
+      <div class="storage-stat" id="storageMsgCount">Messages: —</div>
+      <div class="storage-stat" id="storageStatusCount">Statuses saved: —</div>
+
+      <div class="sub-section-label">Data Usage</div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Auto-Download Media</div><div class="sub-row-sub">Download media automatically on Wi-Fi</div></div>
+        <div class="toggle-switch" id="autoDownloadToggle"></div>
+      </div>
+      <div class="sub-row">
+        <div><div class="sub-row-label">Data Saver</div><div class="sub-row-sub">Reduce data usage when on mobile data</div></div>
+        <div class="toggle-switch" id="dataSaverToggle"></div>
+      </div>
+
+      <div class="sub-section-label">Clear</div>
+      <button class="settings-danger-btn" id="clearCacheBtn">Clear Cache</button>
+      <button class="settings-danger-btn" id="clearAllDataBtn" style="background:#c0392b;margin-top:10px">Clear All App Data</button>
+    </div>
+  </div>
+
+  <!-- ── HELP ── -->
+  <div class="screen-help" id="screenHelp">
+    <div class="sub-header">
+      <button class="back-btn" id="helpBackBtn">←</button>
+      <span class="sub-header-title">Help</span>
+    </div>
+    <div class="help-body">
+      <p class="help-intro">Quick reference for common actions in JUSTUS.</p>
+      <table class="help-table">
+        <thead><tr><th>Action</th><th>How to do it</th></tr></thead>
+        <tbody>
+          <tr><td>View profile</td><td>Long-press (hold) on any chat in the list</td></tr>
+          <tr><td>Mute notifications</td><td>In profile, tap the mute toggle</td></tr>
+          <tr><td>Clear chat</td><td>In profile, tap "Clear Chat"</td></tr>
+          <tr><td>Update status</td><td>Go to Updates tab → tap "Add Status Update"</td></tr>
+          <tr><td>Make a call</td><td>Go to Calls tab → tap the phone icon</td></tr>
+          <tr><td>Change theme</td><td>Settings → Theme</td></tr>
+          <tr><td>Back to chats</td><td>Tap the ← arrow in top left</td></tr>
+        </tbody>
+      </table>
+      <div class="help-tip"><strong>💡 Tip</strong>Long-press means pressing and holding a chat for about one second until the profile opens.</div>
+    </div>
+  </div>
+
+</div><!-- end main-content -->
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item active" data-screen="chats"><div class="nav-icon">💬</div><div class="nav-label" id="navChats">Chats</div></div>
+  <div class="nav-item" data-screen="updates"><div class="nav-icon">📢</div><div class="nav-label" id="navUpdates">Updates</div></div>
+  <div class="nav-item" data-screen="calls"><div class="nav-icon">📞</div><div class="nav-label" id="navCalls">Calls</div></div>
+</div>
+<!-- FAB -->
+<div class="fab-overlay" id="fabOverlay"></div>
+<div class="fab-container" id="fabContainer">
+  <div class="fab-item" id="fabChats" style="--i:3">
+    <span class="fab-label">Chats</span>
+    <div class="fab-mini">💬</div>
+  </div>
+  <div class="fab-item" id="fabStatus" style="--i:2">
+    <span class="fab-label">Status</span>
+    <div class="fab-mini">📢</div>
+  </div>
+  <div class="fab-item" id="fabCalls" style="--i:1">
+    <span class="fab-label">Calls</span>
+    <div class="fab-mini">📞</div>
+  </div>
+  <button class="fab-main" id="fabBtn">
+    <span id="fabIcon">+</span>
+  </button>
+</div>
+</div><!-- end app-container -->
+
+<script>
+// ── FIREBASE INIT ──
+const firebaseConfig = {
+  apiKey: "AIzaSyDUHVeaHIMRS8GxkFNEjVSXfUeKr_mQnp0",
+  authDomain: "just-you-n-i.firebaseapp.com",
+  databaseURL: "https://just-you-n-i-default-rtdb.firebaseio.com",
+  projectId: "just-you-n-i",
+  storageBucket: "just-you-n-i.firebasestorage.app",
+  messagingSenderId: "340669970156",
+  appId: "1:340669970156:web:8d9e0db1c1bd08e99e17c9"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+// ── STATE ──
+let currentUid = null;
+let currentChatId = null;
+let currentProfileId = null;
+let chats = [];
+let statuses = [];
+let calls = [];
+let activeMessageListener = null;
+
+const S = {
+  theme:'light', lang:'en',
+  username:'', about:'Hey there! I am using JUSTUS.', avatarEmoji:'',
+  readReceipts:true, onlineStatus:true, lastSeen:'everyone', profilePhoto:'everyone',
+  wallpaper:'#f5f5f5', bubbleColor:'#DCF8C6', fontSize:'14px', enterToSend:false,
+  notif:true, sound:true, vibrate:true, preview:true,
+  autoDownload:true, dataSaver:false,
+};
+
+// ── LANGUAGES ──
+const LANG = {
+  en:{chats:'Chats',updates:'Updates',calls:'Calls',secure:'🔒 PRIVATE & SECURE',online:'Online',settings:'Settings',typeMsg:'Type a message...'},
+  es:{chats:'Chats',updates:'Estado',calls:'Llamadas',secure:'🔒 PRIVADO Y SEGURO',online:'En línea',settings:'Ajustes',typeMsg:'Escribe un mensaje...'},
+  fr:{chats:'Discussions',updates:'Statuts',calls:'Appels',secure:'🔒 PRIVÉ & SÉCURISÉ',online:'En ligne',settings:'Paramètres',typeMsg:'Tapez un message...'},
+  de:{chats:'Chats',updates:'Status',calls:'Anrufe',secure:'🔒 PRIVAT & SICHER',online:'Online',settings:'Einstellungen',typeMsg:'Nachricht eingeben...'},
+  pt:{chats:'Conversas',updates:'Atualizações',calls:'Chamadas',secure:'🔒 PRIVADO & SEGURO',online:'Online',settings:'Configurações',typeMsg:'Digite uma mensagem...'},
+};
+
+function applyLanguage() {
+  const L = LANG[S.lang]||LANG.en;
+  document.getElementById('navChats').textContent = L.chats;
+  document.getElementById('navUpdates').textContent = L.updates;
+  document.getElementById('navCalls').textContent = L.calls;
+  document.getElementById('headerSubtitle').textContent = L.secure;
+  document.getElementById('settingsTitle').textContent = L.settings;
+  document.getElementById('messageInput').placeholder = L.typeMsg;
+  document.getElementById('updatesTitle').textContent = L.updates.toUpperCase();
+  document.getElementById('callsTitle').textContent = L.calls.toUpperCase();
+}
+
+function applyAllSettings() {
+  document.body.className = S.theme;
+  const ts = document.getElementById('themeSelect'); if(ts) ts.value = S.theme;
+  const ls = document.getElementById('langSelect'); if(ls) ls.value = S.lang;
+  const ai = document.getElementById('accountNameInput'); if(ai) ai.value = S.username;
+  const ab = document.getElementById('accountAboutInput'); if(ab) ab.value = S.about;
+  if(S.avatarEmoji) { const av = document.getElementById('accountAvatar'); if(av) av.textContent = S.avatarEmoji; }
+  document.documentElement.style.setProperty('--chat-wallpaper', S.wallpaper);
+  document.documentElement.style.setProperty('--sent-msg', S.bubbleColor);
+  document.documentElement.style.setProperty('--msg-font-size', S.fontSize);
+  setToggle('readReceiptsToggle',S.readReceipts);
+  setToggle('onlineStatusToggle',S.onlineStatus);
+  setToggle('enterToSendToggle',S.enterToSend);
+  setToggle('notifToggle',S.notif);
+  setToggle('soundToggle',S.sound);
+  setToggle('vibrateToggle',S.vibrate);
+  setToggle('previewToggle',S.preview);
+  setToggle('autoDownloadToggle',S.autoDownload);
+  setToggle('dataSaverToggle',S.dataSaver);
+  updateRadioGroup('lastSeen',S.lastSeen);
+  updateRadioGroup('profilePhoto',S.profilePhoto);
+  updateSwatches('wallpaperSwatches',S.wallpaper);
+  updateSwatches('bubbleSwatches',S.bubbleColor);
+  document.querySelectorAll('.font-size-btn').forEach(b=>b.classList.toggle('active',b.dataset.size===S.fontSize));
+  applyLanguage();
+}
+
+function setToggle(id,val){const el=document.getElementById(id);if(el)el.classList.toggle('on',!!val);}
+function updateRadioGroup(group,val){document.querySelectorAll(`.radio-opt[data-group="${group}"]`).forEach(o=>o.querySelector('.radio-dot').classList.toggle('selected',o.dataset.val===val));}
+function updateSwatches(cid,val){document.querySelectorAll(`#${cid} .swatch`).forEach(s=>s.classList.toggle('active',s.dataset.val===val));}
+
+// ── SCREEN MANAGEMENT ──
+function showScreen(screen) {
+  document.querySelectorAll('[class*="screen-"]').forEach(s=>s.classList.remove('show'));
+  const id='screen'+screen.charAt(0).toUpperCase()+screen.slice(1);
+  const el=document.getElementById(id);
+  if(el) el.classList.add('show');
+  document.querySelectorAll('.nav-item').forEach(item=>item.classList.toggle('active',item.dataset.screen===screen));
+  if(screen==='updates') renderStatusList();
+  if(screen==='calls') renderCallList();
+  if(screen==='storage') renderStorageStats();
+}
+
+// ── AUTH ──
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    currentUid = user.uid;
+    await loadUserProfile(user.uid);
+    document.getElementById('screenLogin').classList.add('hide');
+    loadContacts();
+    loadStatuses();
+    loadCalls();
+    showScreen('chats');
+  } else {
+    currentUid = null;
+    document.getElementById('screenLogin').classList.remove('hide');
+  }
+});
+
+async function signupUser(name, username, password) {
+  if (!name.trim()) return 'Please enter your name';
+  if (!username.trim() || username.length < 3) return 'Username must be at least 3 characters';
+  if (!password || password.length < 4) return 'Password must be at least 4 characters';
+  const usernameSnap = await db.ref('usernames/'+username.toLowerCase()).once('value');
+  if (usernameSnap.exists()) return 'Username already taken';
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(username.toLowerCase()+'@justus.app', password);
+    const uid = cred.user.uid;
+    await db.ref('users/'+uid).set({
+      username: username.toLowerCase(), name: name.trim(),
+      avatar: name.charAt(0).toUpperCase(),
+      about: 'Hey there! I am using JUSTUS.',
+      online: true, lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+    await db.ref('usernames/'+username.toLowerCase()).set(uid);
+    return null;
+  } catch(e) {
+    if(e.code==='auth/email-already-in-use') return 'Username already taken';
+    return e.message;
+  }
+}
+
+async function loginUser(username, password) {
+  try {
+    await auth.signInWithEmailAndPassword(username.toLowerCase()+'@justus.app', password);
+    return null;
+  } catch(e) {
+    if(e.code==='auth/user-not-found'||e.code==='auth/invalid-credential') return 'Username or password incorrect';
+    if(e.code==='auth/wrong-password') return 'Incorrect password';
+    return 'Login failed. Check your username and password.';
+  }
+}
+
+function logoutUser() {
+  if (!confirm('Log out?')) return;
+  if (currentUid) db.ref('users/'+currentUid+'/online').set(false);
+  if (activeMessageListener) { db.ref('chats/'+activeMessageListener+'/messages').off(); activeMessageListener=null; }
+  db.ref('users').off();
+  auth.signOut();
+  chats=[]; statuses=[]; calls=[];
+  renderChatList();
+}
+
+async function loadUserProfile(uid) {
+  const snap = await db.ref('users/'+uid).once('value');
+  const p = snap.val();
+  if (p) {
+    S.username = p.name;
+    S.avatarEmoji = p.avatar || p.name.charAt(0).toUpperCase();
+    S.about = p.about || S.about;
+    const savedSettings = localStorage.getItem('justus_settings_'+uid);
+    if (savedSettings) Object.assign(S, JSON.parse(savedSettings));
+    S.username = p.name;
+    applyAllSettings();
+    const ai=document.getElementById('accountAvatar'); if(ai) ai.textContent=S.avatarEmoji;
+    document.getElementById('headerSubtitle').textContent = '👋 '+S.username;
+  }
+  db.ref('users/'+uid+'/online').set(true);
+  db.ref('users/'+uid+'/online').onDisconnect().set(false);
+}
+
+function saveUserSettings() {
+  if (currentUid) localStorage.setItem('justus_settings_'+currentUid, JSON.stringify(S));
+}
+
+// ── CONTACTS ──
+function getChatId(uid1, uid2) { return [uid1,uid2].sort().join('_'); }
+
+function loadContacts() {
+  db.ref('users').on('value', snap => {
+    const allUsers = snap.val() || {};
+    chats = [];
+    Object.entries(allUsers).forEach(([uid, user]) => {
+      if (uid === currentUid) return;
+      const chatId = getChatId(currentUid, uid);
+      chats.push({
+        id: chatId, uid: uid,
+        name: user.name, avatar: user.avatar||user.name.charAt(0),
+        status: user.online ? 'Online' : 'Last seen recently',
+        lastMessage: 'Tap to start chatting', time: '', unread: 0, muted: false
+      });
+    });
+    // Load last messages for each chat
+    chats.forEach(chat => {
+      db.ref('chats/'+chat.id+'/lastMessage').once('value').then(snap => {
+        const lm = snap.val();
+        if (lm) { chat.lastMessage=lm.text; chat.time=lm.time; renderChatList(); }
+      });
+    });
+    renderChatList();
+  });
+}
+
+// ── CHAT LIST ──
+function renderChatList() {
+  const container = document.getElementById('chatList');
+  if (!chats.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-muted)"><div style="font-size:48px;margin-bottom:12px">👋</div><div style="font-size:16px;font-weight:600;margin-bottom:8px">No contacts yet</div><div style="font-size:13px">Other users will appear here when they sign up</div></div>';
+    return;
+  }
+  container.innerHTML = chats.map(chat => `
+    <div class="chat-item" data-id="${chat.id}">
+      <div class="chat-avatar-img">${chat.avatar}</div>
+      <div class="chat-info">
+        <div class="chat-name">${chat.name}${chat.muted?' 🔕':''}</div>
+        <div class="chat-preview">${chat.lastMessage}</div>
+      </div>
+      <div class="chat-meta">
+        <div class="chat-time">${chat.time}</div>
+        ${chat.unread>0?`<div class="unread-badge">${chat.unread}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  document.querySelectorAll('.chat-item').forEach(item => {
+    item.addEventListener('click',()=>openChat(item.dataset.id));
+    item.addEventListener('contextmenu',e=>{e.preventDefault();openProfile(item.dataset.id);});
+    let pt;
+    item.addEventListener('touchstart',()=>{pt=setTimeout(()=>openProfile(item.dataset.id),600);},{passive:true});
+    item.addEventListener('touchend',()=>clearTimeout(pt));
+    item.addEventListener('touchmove',()=>clearTimeout(pt));
+  });
+}
+
+function openChat(chatId) {
+  const chat = chats.find(c=>c.id===chatId);
+  if (!chat) return;
+  currentChatId = chatId;
+  document.getElementById('chatName').textContent = chat.name;
+  document.getElementById('chatAvatar').textContent = chat.avatar;
+  const L=LANG[S.lang]||LANG.en;
+  document.getElementById('chatStatus').textContent = S.onlineStatus&&chat.status==='Online'?L.online:chat.status;
+
+  const area = document.getElementById('messagesArea');
+  area.innerHTML = '<div class="date-divider"><span>Today</span></div><div data-nomsg style="text-align:center;padding:20px;color:var(--text-muted)">No messages yet</div>';
+
+  if (activeMessageListener) { db.ref('chats/'+activeMessageListener+'/messages').off(); activeMessageListener=null; }
+  activeMessageListener = chatId;
+
+  db.ref('chats/'+chatId+'/messages').on('child_added', snap => {
+    const msg = snap.val();
+    const isSent = msg.sender===currentUid;
+    const noMsg = area.querySelector('[data-nomsg]');
+    if (noMsg) noMsg.remove();
+    const div = document.createElement('div');
+    div.className = 'message '+(isSent?'sent':'received');
+    div.innerHTML = `<div class="message-bubble">${escHtml(msg.text)}<div class="message-meta"><span>${msg.timeStr}</span>${isSent&&S.readReceipts?' ✓✓':isSent?' ✓':''}</div></div>`;
+    area.appendChild(div);
+    area.scrollTop = area.scrollHeight;
+    if (!isSent && S.notif && S.sound) playPing();
+    if (!isSent && S.vibrate && navigator.vibrate) navigator.vibrate(100);
+  });
+
+  chat.unread=0;
+  showScreen('chat');
+}
+
+function escHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function playPing() {
+  try{const c=new(window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator();const g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.setValueAtTime(0.1,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.15);o.start();o.stop(c.currentTime+0.15);}catch(e){}
+}
+
+function sendMessage() {
+  const input = document.getElementById('messageInput');
+  const text = input.value.trim();
+  if (!text||!currentUid||!currentChatId) return;
+  const time = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  db.ref('chats/'+currentChatId+'/messages').push({
+    text, sender:currentUid, senderName:S.username,
+    timeStr:time, timestamp:firebase.database.ServerValue.TIMESTAMP
+  });
+  db.ref('chats/'+currentChatId+'/lastMessage').set({text,time,sender:currentUid});
+  const chat=chats.find(c=>c.id===currentChatId);
+  if(chat){chat.lastMessage=text;chat.time=time;renderChatList();}
+  input.value='';
+  if(S.sound) playPing();
+}
+
+function openProfile(chatId) {
+  currentProfileId = chatId;
+  const chat = chats.find(c=>c.id===chatId);
+  if(!chat) return;
+  document.getElementById('profileAvatar').textContent = chat.avatar;
+  document.getElementById('profileName').textContent = chat.name;
+  document.getElementById('profileStatusText').textContent = chat.status;
+  setToggle('muteToggle',chat.muted);
+  showScreen('profile');
+}
+
+// ── UPDATES (Statuses) ──
+function loadStatuses() {
+  db.ref('statuses').on('value', snap => {
+    statuses = [];
+    snap.forEach(child => { statuses.unshift(child.val()); });
+    renderStatusList();
+  });
+}
+
+function renderStatusList() {
+  document.getElementById('statusList').innerHTML = statuses.length
+    ? statuses.map(s=>`<div class="status-card"><div class="status-avatar-small">${s.avatar}</div><div class="status-info"><div class="status-name">${s.name}</div><div class="status-text">${s.text}</div><div class="status-time">${s.time}</div></div></div>`).join('')
+    : '<div style="text-align:center;padding:30px;color:var(--text-muted)">No statuses yet</div>';
+}
+
+function addStatus() {
+  const text = document.getElementById('statusInput').value.trim();
+  if(!text) return;
+  const time = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  db.ref('statuses').push({ name:S.username, text, time, avatar:S.avatarEmoji||S.username.charAt(0).toUpperCase(), uid:currentUid, timestamp:firebase.database.ServerValue.TIMESTAMP });
+  document.getElementById('statusModal').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('statusInput').value='';
+}
+
+// ── CALLS ──
+function loadCalls() {
+  db.ref('calls/'+currentUid).limitToLast(20).on('value', snap => {
+    calls=[];
+    snap.forEach(child=>calls.unshift(child.val()));
+    renderCallList();
+  });
+}
+
+function renderCallList() {
+  const container = document.getElementById('callList');
+  container.innerHTML = calls.length
+    ? calls.map(c=>`<div class="call-item"><div class="call-avatar">${c.avatar}</div><div class="call-info"><div class="call-name">${c.name}</div><div class="call-type">${c.type}</div><div class="status-time">${c.time}</div></div><button class="call-btn" data-name="${c.name}" data-av="${c.avatar}">📞</button></div>`).join('')
+    : '<div style="text-align:center;padding:30px;color:var(--text-muted)">No calls yet</div>';
+  document.querySelectorAll('.call-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const time=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      const callData={name:btn.dataset.name,type:'Outgoing',time,avatar:btn.dataset.av};
+      db.ref('calls/'+currentUid).push(callData);
+      if(S.vibrate&&navigator.vibrate) navigator.vibrate([200,100,200]);
+      alert('Calling '+btn.dataset.name+'...');
+    });
+  });
+}
+
+// ── MUTE / CLEAR ──
+document.getElementById('muteItem').addEventListener('click',()=>{
+  if(!currentProfileId) return;
+  const chat=chats.find(c=>c.id===currentProfileId);
+  if(!chat) return;
+  chat.muted=!chat.muted;
+  setToggle('muteToggle',chat.muted);
+  renderChatList();
+});
+
+document.getElementById('clearChatItem').addEventListener('click',()=>{
+  if(!currentProfileId||!currentUid) return;
+  if(confirm('Clear all messages in this chat?')) {
+    db.ref('chats/'+currentProfileId+'/messages').remove();
+    if(currentChatId===currentProfileId) {
+      document.getElementById('messagesArea').innerHTML='<div class="date-divider"><span>Today</span></div><div data-nomsg style="text-align:center;padding:20px;color:var(--text-muted)">No messages yet</div>';
+    }
+  }
+});
+
+// ── STORAGE STATS ──
+function renderStorageStats() {
+  const lsSize=JSON.stringify(localStorage).length;
+  const pct=Math.min((lsSize/51200)*100,100);
+  const kb=(lsSize/1024).toFixed(1);
+  document.getElementById('storageUsedLabel').textContent=kb+' KB used';
+  document.getElementById('storageBarFill').style.width=pct+'%';
+  document.getElementById('storageMsgCount').textContent='Chats: '+chats.length;
+  document.getElementById('storageStatusCount').textContent='Statuses: '+statuses.length;
+}
+
+// ── SETTINGS NAV ──
+document.getElementById('goAccount').addEventListener('click',()=>showScreen('account'));
+document.getElementById('goPrivacy').addEventListener('click',()=>showScreen('privacy'));
+document.getElementById('goChatsSettings').addEventListener('click',()=>showScreen('chatsSettings'));
+document.getElementById('goNotifications').addEventListener('click',()=>showScreen('notifications'));
+document.getElementById('goStorage').addEventListener('click',()=>showScreen('storage'));
+document.getElementById('goInvite').addEventListener('click',()=>{navigator.clipboard?.writeText('justust-new-chatapp14.netlify.app');alert('Link copied: justust-new-chatapp14.netlify.app');});
+document.getElementById('goHelpFromSettings').addEventListener('click',()=>showScreen('help'));
+
+document.getElementById('themeSelect').addEventListener('change',e=>{S.theme=e.target.value;document.body.className=S.theme;saveUserSettings();});
+document.getElementById('langSelect').addEventListener('change',e=>{S.lang=e.target.value;applyLanguage();saveUserSettings();});
+
+// Back buttons
+document.getElementById('chatBackBtn').addEventListener('click',()=>showScreen('chats'));
+document.getElementById('profileBackBtn').addEventListener('click',()=>showScreen('chats'));
+document.getElementById('settingsBackBtn').addEventListener('click',()=>showScreen('chats'));
+document.getElementById('accountBackBtn').addEventListener('click',()=>showScreen('settings'));
+document.getElementById('privacyBackBtn').addEventListener('click',()=>showScreen('settings'));
+document.getElementById('chatsSettingsBackBtn').addEventListener('click',()=>showScreen('settings'));
+document.getElementById('notificationsBackBtn').addEventListener('click',()=>showScreen('settings'));
+document.getElementById('storageBackBtn').addEventListener('click',()=>showScreen('settings'));
+document.getElementById('helpBackBtn').addEventListener('click',()=>showScreen('settings'));
+
+// ── ACCOUNT ──
+document.getElementById('accountAvatar').addEventListener('click',()=>document.getElementById('emojiPicker').classList.toggle('show'));
+document.querySelectorAll('.emoji-opt').forEach(opt=>{
+  opt.addEventListener('click',()=>{
+    S.avatarEmoji=opt.textContent;
+    document.getElementById('accountAvatar').textContent=S.avatarEmoji;
+    document.getElementById('emojiPicker').classList.remove('show');
+    if(currentUid) db.ref('users/'+currentUid+'/avatar').set(S.avatarEmoji);
+  });
+});
+document.getElementById('accountSaveBtn').addEventListener('click',()=>{
+  const name=document.getElementById('accountNameInput').value.trim();
+  const about=document.getElementById('accountAboutInput').value.trim();
+  if(name) { S.username=name; if(currentUid) db.ref('users/'+currentUid+'/name').set(name); }
+  if(about) { S.about=about; if(currentUid) db.ref('users/'+currentUid+'/about').set(about); }
+  saveUserSettings();
+  showScreen('settings');
+});
+
+// ── PRIVACY ──
+document.getElementById('readReceiptsToggle').addEventListener('click',()=>{S.readReceipts=!S.readReceipts;setToggle('readReceiptsToggle',S.readReceipts);saveUserSettings();});
+document.getElementById('onlineStatusToggle').addEventListener('click',()=>{S.onlineStatus=!S.onlineStatus;setToggle('onlineStatusToggle',S.onlineStatus);if(currentUid)db.ref('users/'+currentUid+'/online').set(S.onlineStatus);saveUserSettings();});
+document.querySelectorAll('.radio-opt').forEach(opt=>{opt.addEventListener('click',()=>{S[opt.dataset.group]=opt.dataset.val;updateRadioGroup(opt.dataset.group,opt.dataset.val);saveUserSettings();});});
+
+// ── CHATS SETTINGS ──
+document.querySelectorAll('#wallpaperSwatches .swatch').forEach(s=>{s.addEventListener('click',()=>{S.wallpaper=s.dataset.val;document.documentElement.style.setProperty('--chat-wallpaper',S.wallpaper);updateSwatches('wallpaperSwatches',S.wallpaper);saveUserSettings();});});
+document.querySelectorAll('#bubbleSwatches .swatch').forEach(s=>{s.addEventListener('click',()=>{S.bubbleColor=s.dataset.val;document.documentElement.style.setProperty('--sent-msg',S.bubbleColor);updateSwatches('bubbleSwatches',S.bubbleColor);saveUserSettings();});});
+document.querySelectorAll('.font-size-btn').forEach(btn=>{btn.addEventListener('click',()=>{S.fontSize=btn.dataset.size;document.documentElement.style.setProperty('--msg-font-size',S.fontSize);document.querySelectorAll('.font-size-btn').forEach(b=>b.classList.toggle('active',b===btn));saveUserSettings();});});
+document.getElementById('enterToSendToggle').addEventListener('click',()=>{S.enterToSend=!S.enterToSend;setToggle('enterToSendToggle',S.enterToSend);saveUserSettings();});
+
+// ── NOTIFICATIONS ──
+document.getElementById('notifToggle').addEventListener('click',()=>{
+  if(!S.notif&&'Notification'in window){Notification.requestPermission().then(p=>{S.notif=p==='granted';setToggle('notifToggle',S.notif);saveUserSettings();});}
+  else{S.notif=!S.notif;setToggle('notifToggle',S.notif);saveUserSettings();}
+});
+document.getElementById('soundToggle').addEventListener('click',()=>{S.sound=!S.sound;setToggle('soundToggle',S.sound);saveUserSettings();});
+document.getElementById('vibrateToggle').addEventListener('click',()=>{S.vibrate=!S.vibrate;setToggle('vibrateToggle',S.vibrate);saveUserSettings();if(S.vibrate&&navigator.vibrate)navigator.vibrate(200);});
+document.getElementById('previewToggle').addEventListener('click',()=>{S.preview=!S.preview;setToggle('previewToggle',S.preview);saveUserSettings();});
+document.getElementById('testNotifBtn').addEventListener('click',()=>{
+  if('Notification'in window&&Notification.permission==='granted'){new Notification('JUSTUS',{body:S.preview?'This is a test notification 👋':'New message'});}
+  else{alert('Enable notifications first.');}
+  if(S.vibrate&&navigator.vibrate)navigator.vibrate([100,50,100]);
+  if(S.sound)playPing();
+});
+
+// ── STORAGE ──
+document.getElementById('autoDownloadToggle').addEventListener('click',()=>{S.autoDownload=!S.autoDownload;setToggle('autoDownloadToggle',S.autoDownload);saveUserSettings();});
+document.getElementById('dataSaverToggle').addEventListener('click',()=>{S.dataSaver=!S.dataSaver;setToggle('dataSaverToggle',S.dataSaver);saveUserSettings();});
+document.getElementById('clearCacheBtn').addEventListener('click',()=>{if(confirm('Clear cached data?')){if(currentUid)localStorage.removeItem('justus_settings_'+currentUid);renderStorageStats();alert('Cache cleared!');}});
+document.getElementById('clearAllDataBtn').addEventListener('click',()=>{if(confirm('Clear ALL local data?')){localStorage.clear();location.reload();}});
+
+// ── SEND ──
+document.getElementById('sendBtn').addEventListener('click',sendMessage);
+document.getElementById('messageInput').addEventListener('keypress',e=>{if(e.key==='Enter'&&S.enterToSend){e.preventDefault();sendMessage();}});
+
+// ── STATUS MODAL ──
+document.getElementById('openStatusBtn').addEventListener('click',()=>{document.getElementById('statusModal').classList.add('open');document.getElementById('overlay').classList.add('show');});
+document.getElementById('cancelStatusBtn').addEventListener('click',()=>{document.getElementById('statusModal').classList.remove('open');document.getElementById('overlay').classList.remove('show');});
+document.getElementById('postStatusBtn').addEventListener('click',addStatus);
+document.getElementById('overlay').addEventListener('click',()=>{document.getElementById('statusModal').classList.remove('open');document.getElementById('overlay').classList.remove('show');});
+
+// ── DROPDOWN MENU ──
+const menuBtn=document.getElementById('menuBtn');
+const dropdown=document.getElementById('dropdownMenu');
+menuBtn.addEventListener('click',e=>{e.stopPropagation();dropdown.classList.toggle('show');});
+document.addEventListener('click',()=>dropdown.classList.remove('show'));
+document.getElementById('menuSettings').addEventListener('click',()=>{dropdown.classList.remove('show');showScreen('settings');});
+document.getElementById('menuHelp').addEventListener('click',()=>{dropdown.classList.remove('show');showScreen('help');});
+document.getElementById('menuInvite').addEventListener('click',()=>{dropdown.classList.remove('show');navigator.clipboard?.writeText('justust-new-chatapp14.netlify.app');alert('Link copied!');});
+
+// ── NAV ──
+document.querySelectorAll('.nav-item').forEach(item=>{item.addEventListener('click',()=>showScreen(item.dataset.screen));});
+
+// ── FAB ──
+let fabOpen=false;
+const fabBtn=document.getElementById('fabBtn');
+const fabOverlay=document.getElementById('fabOverlay');
+const fabItems=document.querySelectorAll('.fab-item');
+function toggleFab(force){fabOpen=force!==undefined?force:!fabOpen;fabBtn.classList.toggle('open',fabOpen);fabOverlay.classList.toggle('open',fabOpen);fabItems.forEach(item=>item.classList.toggle('open',fabOpen));}
+fabBtn.addEventListener('click',()=>toggleFab());
+fabOverlay.addEventListener('click',()=>toggleFab(false));
+document.getElementById('fabChats').addEventListener('click',()=>{toggleFab(false);showScreen('chats');});
+document.getElementById('fabStatus').addEventListener('click',()=>{toggleFab(false);showScreen('updates');});
+document.getElementById('fabCalls').addEventListener('click',()=>{toggleFab(false);showScreen('calls');});
+
+// ── LOGIN UI ──
+document.getElementById('tabLogin').addEventListener('click',()=>{document.getElementById('tabLogin').classList.add('active');document.getElementById('tabSignup').classList.remove('active');document.getElementById('loginForm').style.display='block';document.getElementById('signupForm').style.display='none';});
+document.getElementById('tabSignup').addEventListener('click',()=>{document.getElementById('tabSignup').classList.add('active');document.getElementById('tabLogin').classList.remove('active');document.getElementById('signupForm').style.display='block';document.getElementById('loginForm').style.display='none';});
+
+document.getElementById('loginBtn').addEventListener('click',async()=>{
+  const u=document.getElementById('loginUsername').value.trim();
+  const p=document.getElementById('loginPassword').value;
+  document.getElementById('loginBtn').textContent='Logging in...';
+  const err=await loginUser(u,p);
+  document.getElementById('loginBtn').textContent='Log In';
+  document.getElementById('loginError').textContent=err||'';
+});
+document.getElementById('signupBtn').addEventListener('click',async()=>{
+  const n=document.getElementById('signupName').value;
+  const u=document.getElementById('signupUsername').value.trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+  const p=document.getElementById('signupPassword').value;
+  document.getElementById('signupBtn').textContent='Creating...';
+  const err=await signupUser(n,u,p);
+  document.getElementById('signupBtn').textContent='Create Account';
+  document.getElementById('signupError').textContent=err||'';
+});
+['loginUsername','loginPassword'].forEach(id=>{document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});});
+['signupName','signupUsername','signupPassword'].forEach(id=>{document.getElementById(id).addEventListener('keypress',e=>{if(e.key==='Enter')document.getElementById('signupBtn').click();});});
+
+// ── LOGOUT in settings ──
+const settingsBody=document.querySelector('.settings-body');
+if(settingsBody){
+  const div=document.createElement('div');
+  div.innerHTML='<div class="settings-section-label" style="color:#e74c3c">Session</div><div class="settings-row" id="logoutBtn"><span class="settings-row-label" style="color:#e74c3c">Log Out</span><span class="settings-chevron" style="color:#e74c3c">›</span></div>';
+  settingsBody.appendChild(div);
+  div.querySelector('#logoutBtn').addEventListener('click',logoutUser);
+}
+
+// ── INIT ──
+applyAllSettings();
+showScreen('chats');
+</script>
+
